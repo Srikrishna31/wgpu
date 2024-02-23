@@ -57,19 +57,50 @@ pub async fn run() {
                 ref event,
                 window_id,
                 ..
-            } if window_id == state.window().id() => match event {
-                WindowEvent::CloseRequested
-                | WindowEvent::KeyboardInput {
-                    event:
-                        KeyEvent {
-                            state: ElementState::Pressed,
-                            physical_key: Code(KeyCode::Escape),
+            } if window_id == state.window().id() => {
+                if !state.input(event) {
+                    match event {
+                        WindowEvent::CloseRequested
+                        | WindowEvent::KeyboardInput {
+                            event:
+                                KeyEvent {
+                                    state: ElementState::Pressed,
+                                    physical_key: Code(KeyCode::Escape),
+                                    ..
+                                },
                             ..
-                        },
-                    ..
-                } => elwt.exit(),
-                _ => (),
-            },
+                        } => elwt.exit(),
+                        WindowEvent::Resized(physical_size) => {
+                            state.resize(*physical_size);
+                        }
+                        WindowEvent::ScaleFactorChanged {
+                            scale_factor: factor,
+                            ..
+                        } => {
+                            let new_size = {
+                                let size = state.window().inner_size();
+                                winit::dpi::PhysicalSize::new(
+                                    (size.width as f64 * factor) as u32,
+                                    (size.height as f64 * factor) as u32,
+                                )
+                            };
+                            state.resize(new_size);
+                        }
+                        WindowEvent::RedrawRequested => {
+                            state.update();
+                            match state.render() {
+                                Ok(_) => (),
+                                Err(wgpu::SurfaceError::Lost) => {
+                                    state.resize(state.window().inner_size())
+                                }
+                                Err(wgpu::SurfaceError::OutOfMemory) => elwt.exit(),
+                                Err(e) => eprintln!("{:?}", e),
+                            }
+                        }
+                        _ => (),
+                    }
+                }
+            }
             _ => (),
         })
         .expect("TODO: panic message");
