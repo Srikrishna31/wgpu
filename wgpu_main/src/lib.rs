@@ -90,10 +90,10 @@ pub async fn run() {
                             state.update();
                             match state.render() {
                                 Ok(_) => (),
-                                Err(wgpu::SurfaceError::Lost) => {
-                                    state.resize(state.window().inner_size())
-                                }
+                                Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) =>
+                                    state.resize(state.window().inner_size()),
                                 Err(wgpu::SurfaceError::OutOfMemory) => elwt.exit(),
+                                Err(wgpu::SurfaceError::Timeout) => log::warn!("Surface timeout"),
                                 Err(e) => eprintln!("{:?}", e),
                             }
                         }
