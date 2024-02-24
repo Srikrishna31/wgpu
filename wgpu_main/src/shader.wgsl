@@ -13,7 +13,7 @@ struct VertexOutput {
 
 @vertex
 fn vs_main(
-    @builtin(vertex_index) vertex_index: u32,
+    @builtin(vertex_index) in_vertex_index: u32,
 ) -> VertexOutput {
     // Variables defined with ```var``` can be modified but must specify their type. Variables created with ```let```
     //are immutable, but can have their types inferred.
@@ -21,7 +21,7 @@ fn vs_main(
     let x = f32(1 - i32(in_vertex_index)) * 0.5;
     let y = f32(i32(in_vertex_index & 1u) * 2 - 1) * 0.5;
     output.clip_position = vec4<f32>(x, y, 0.0, 1.0);
-    output.vert_pos = out.clip_position.xyz;
+    output.vert_pos = output.clip_position.xyz;
     return output;
 }
 
