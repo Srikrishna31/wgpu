@@ -1,4 +1,4 @@
-use crate::{Vertex, VERTICES};
+use crate::{Vertex, INDICES, PENTAGON, VERTICES};
 use wgpu::util::DeviceExt;
 use winit::window::Window;
 
@@ -13,7 +13,8 @@ pub(super) struct State<'window> {
     window: &'window Window,
     render_pipeline: wgpu::RenderPipeline,
     vertex_buffer: wgpu::Buffer,
-    num_vertices: u32,
+    index_buffer: wgpu::Buffer,
+    num_indices: u32,
 }
 
 impl<'window> State<'window> {
@@ -137,8 +138,14 @@ impl<'window> State<'window> {
 
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex Buffer"),
-            contents: bytemuck::cast_slice(VERTICES),
+            contents: bytemuck::cast_slice(PENTAGON),
             usage: wgpu::BufferUsages::VERTEX,
+        });
+
+        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Index Buffer"),
+            contents: bytemuck::cast_slice(INDICES),
+            usage: wgpu::BufferUsages::INDEX,
         });
 
         Self {
@@ -150,7 +157,8 @@ impl<'window> State<'window> {
             window,
             render_pipeline,
             vertex_buffer,
-            num_vertices: VERTICES.len() as u32,
+            index_buffer,
+            num_indices: INDICES.len() as u32,
         }
     }
 
@@ -213,7 +221,11 @@ impl<'window> State<'window> {
 
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-            render_pass.draw(0..self.num_vertices, 0..1);
+            render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            // When using an index buffer, you need to use draw_indexed. The draw method ignores the
+            // index buffer. Also, make sure you use the number of indices, not vertices, as your
+            // model will either draw wrong or the method will panic because there are not enough indices.
+            render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
         }
 
         // submit will accept anything that implements IntoIter
