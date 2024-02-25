@@ -1,3 +1,5 @@
+use crate::{Vertex, VERTICES};
+use wgpu::util::DeviceExt;
 use winit::window::Window;
 
 pub(super) struct State<'window> {
@@ -10,6 +12,8 @@ pub(super) struct State<'window> {
     // contains unsafe references to the window's resources.
     window: &'window Window,
     render_pipeline: wgpu::RenderPipeline,
+    vertex_buffer: wgpu::Buffer,
+    num_vertices: u32,
 }
 
 impl<'window> State<'window> {
@@ -81,7 +85,7 @@ impl<'window> State<'window> {
 
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(include_str!("shader_buffer.wgsl").into()),
         });
 
         let render_pipeline_layout =
@@ -97,7 +101,7 @@ impl<'window> State<'window> {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "vs_main",
-                buffers: &[],
+                buffers: &[Vertex::desc()],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
@@ -131,6 +135,12 @@ impl<'window> State<'window> {
             multiview: None,
         });
 
+        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Vertex Buffer"),
+            contents: bytemuck::cast_slice(VERTICES),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+
         Self {
             surface,
             device,
@@ -139,6 +149,8 @@ impl<'window> State<'window> {
             size,
             window,
             render_pipeline,
+            vertex_buffer,
+            num_vertices: VERTICES.len() as u32,
         }
     }
 
@@ -200,7 +212,8 @@ impl<'window> State<'window> {
             });
 
             render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.draw(0..3, 0..1);
+            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+            render_pass.draw(0..self.num_vertices, 0..1);
         }
 
         // submit will accept anything that implements IntoIter

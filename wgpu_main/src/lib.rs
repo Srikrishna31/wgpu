@@ -9,6 +9,64 @@ use winit::{
     window::WindowBuilder,
 };
 
+/// `bytemuck::Pod` indicates that our `Vertex` is "Plain Old Data" and can be interpreted as a &[u8].
+/// `bytemuck::Zeroable` indicates that we can use `std::mem::zeroed()`.
+#[repr(C)]
+#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+struct Vertex {
+    position: [f32; 3],
+    color: [f32; 3],
+}
+
+impl Vertex {
+    fn desc() -> wgpu::VertexBufferLayout<'static> {
+        wgpu::VertexBufferLayout {
+            // The ```array_stride``` defines how wide a vertex is. When the shader goes to read the
+            // next vertex, it will skip over this many bytes to get to the next vertex.
+            array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
+            // step_mode tells the pipeline whether each element of the array in this buffer represents
+            // pre-vertex data or per-instance data.
+            step_mode: wgpu::VertexStepMode::Vertex,
+            // Vertex attributes describe the individual parts of a vertex.
+            attributes: &[
+                wgpu::VertexAttribute {
+                    // This defines the offset in bytes until the attribute starts. For the first attribute,
+                    // the offset is usually zero. For any latter attributes, the offset is the sum over
+                    // size_of of the previous attribute's data.
+                    offset: 0,
+                    // This tells the shader what location to store this attribute at. FOr example,
+                    // `@location(0) x: vec3<f32>` in the vertex shader would correspond to the position
+                    // field of the Vertex struct, while `@location(1) x: vec3<f32>` would be the color field.
+                    shader_location: 0,
+                    // Format thells the shader the shape of the attribute. Float32x3 corresponds to vec3<f32>
+                    // in shader code.
+                    format: wgpu::VertexFormat::Float32x3,
+                },
+                wgpu::VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
+                    shader_location: 1,
+                    format: wgpu::VertexFormat::Float32x3,
+                },
+            ],
+        }
+    }
+}
+
+pub(crate) const VERTICES: &[Vertex] = &[
+    Vertex {
+        position: [0.0, 0.5, 0.0],
+        color: [1.0, 0.0, 0.0],
+    }, // A
+    Vertex {
+        position: [-0.5, -0.5, 0.0],
+        color: [0.0, 1.0, 0.0],
+    }, // B
+    Vertex {
+        position: [0.5, -0.5, 0.0],
+        color: [0.0, 0.0, 1.0],
+    }, // C
+];
+
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
@@ -90,8 +148,9 @@ pub async fn run() {
                             state.update();
                             match state.render() {
                                 Ok(_) => (),
-                                Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) =>
-                                    state.resize(state.window().inner_size()),
+                                Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
+                                    state.resize(state.window().inner_size())
+                                }
                                 Err(wgpu::SurfaceError::OutOfMemory) => elwt.exit(),
                                 Err(wgpu::SurfaceError::Timeout) => log::warn!("Surface timeout"),
                                 Err(e) => eprintln!("{:?}", e),
