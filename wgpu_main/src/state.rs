@@ -1,4 +1,4 @@
-use crate::{texture, Vertex, INDICES, PENTAGON};
+use crate::{camera::Camera, texture, Vertex, INDICES, PENTAGON};
 use wgpu::util::DeviceExt;
 use winit::window::Window;
 
@@ -17,6 +17,7 @@ pub(super) struct State<'window> {
     num_indices: u32,
     diffuse_bind_group: wgpu::BindGroup,
     diffuse_texture: texture::Texture,
+    camera: Camera,
 }
 
 impl<'window> State<'window> {
@@ -193,6 +194,19 @@ impl<'window> State<'window> {
             multiview: None,
         });
 
+        let camera = Camera {
+            // position the camera 1 unit up and 2 units back. +z is out of the screen.
+            eye: (0.0, 1.0, 2.0).into(),
+            // have it look at the origin
+            target: (0.0, 0.0, 0.0).into(),
+            // which way is "up"
+            up: (0.0, 1.0, 0.0).into(),
+            aspect: config.width as f32 / config.height as f32,
+            fovy: 45.0,
+            znear: 0.1,
+            zfar: 100.0,
+        };
+
         Self {
             surface,
             device,
@@ -206,6 +220,7 @@ impl<'window> State<'window> {
             num_indices: INDICES.len() as u32,
             diffuse_bind_group,
             diffuse_texture,
+            camera,
         }
     }
 
