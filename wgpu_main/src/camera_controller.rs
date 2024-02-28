@@ -1,8 +1,9 @@
 use crate::camera::Camera;
-use cgmath::InnerSpace;
-use winit::event::KeyEvent;
-use winit::event::{ElementState, WindowEvent};
-use winit::keyboard::{KeyCode, PhysicalKey::Code};
+use winit::{
+    event::{ElementState, KeyEvent, WindowEvent},
+    keyboard::{KeyCode, PhysicalKey::Code},
+};
+
 pub(crate) struct CameraController {
     speed: f32,
     is_forward_pressed: bool,

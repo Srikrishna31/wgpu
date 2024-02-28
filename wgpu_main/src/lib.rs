@@ -7,7 +7,7 @@ use state::State;
 use winit::{
     error::EventLoopError,
     event::*,
-    event_loop::EventLoop,
+    event_loop::{ControlFlow, EventLoop},
     keyboard::{KeyCode, PhysicalKey::Code},
     window::WindowBuilder,
 };
@@ -188,9 +188,15 @@ pub async fn run() {
                                 Err(e) => eprintln!("{:?}", e),
                             }
                         }
+
                         _ => (),
                     }
                 }
+            }
+            // MainEventsCleared has been renamed to AboutToWait as per the information here:
+            // https://github.com/rust-windowing/winit/issues/2900
+            Event::AboutToWait => {
+                state.window().request_redraw();
             }
             _ => (),
         })
