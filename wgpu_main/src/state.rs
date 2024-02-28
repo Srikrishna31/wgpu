@@ -1,9 +1,11 @@
 use crate::camera_controller::CameraController;
 use crate::{
     camera::{Camera, CameraUniform},
+    instance::{Instance as ObjectInstance, InstanceRaw},
     texture, Vertex, INDICES, PENTAGON,
 };
 use wgpu::util::DeviceExt;
+use wgpu::VertexStepMode::Instance;
 use winit::window::Window;
 
 pub(super) struct State<'window> {
@@ -26,6 +28,8 @@ pub(super) struct State<'window> {
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
     camera_controller: CameraController,
+    instances: Vec<ObjectInstance>,
+    instance_buffer: wgpu::Buffer,
 }
 
 impl<'window> State<'window> {
@@ -101,7 +105,7 @@ impl<'window> State<'window> {
 
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("shader_camera.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(include_str!("shader_instances.wgsl").into()),
         });
 
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -224,7 +228,7 @@ impl<'window> State<'window> {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "vs_main",
-                buffers: &[Vertex::desc()],
+                buffers: &[Vertex::desc(), InstanceRaw::desc()],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
@@ -258,6 +262,8 @@ impl<'window> State<'window> {
             multiview: None,
         });
 
+        let (instances, instance_buffer) = ObjectInstance::create_instances(&device);
+
         Self {
             surface,
             device,
@@ -276,6 +282,8 @@ impl<'window> State<'window> {
             camera_bind_group,
             camera_uniform,
             camera_controller: CameraController::new(0.2),
+            instances,
+            instance_buffer,
         }
     }
 
@@ -348,11 +356,12 @@ impl<'window> State<'window> {
             render_pass.set_bind_group(0, &self.diffuse_bind_group, &[]);
             render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+            render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
             render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
             // When using an index buffer, you need to use draw_indexed. The draw method ignores the
             // index buffer. Also, make sure you use the number of indices, not vertices, as your
             // model will either draw wrong or the method will panic because there are not enough indices.
-            render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
+            render_pass.draw_indexed(0..self.num_indices, 0, 0..self.instances.len() as _);
         }
 
         // submit will accept anything that implements IntoIter

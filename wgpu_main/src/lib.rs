@@ -1,5 +1,6 @@
 mod camera;
 mod camera_controller;
+mod instance;
 mod state;
 mod texture;
 
