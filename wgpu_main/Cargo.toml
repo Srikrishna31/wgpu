@@ -33,6 +33,13 @@ web-sys = {version="0.3", features=[
     "Element"
 ]}
 
+
+[build-dependencies]
+anyhow = "1"
+fs_extra = "1.2"
+glob = "0.3"
+
 # rlib is for the library, cdylib is for webassembly to run in the browser
 [lib]
 crate-type = ["cdylib", "rlib"]
+
