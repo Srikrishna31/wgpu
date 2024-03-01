@@ -12,6 +12,6 @@ fn main() -> Result<()> {
 
     let paths_to_copy = vec!["models/"];
 
-    copy_items(&paths_to_copy, &out_dir, &copy_options)?;
+    copy_items(&paths_to_copy, out_dir, &copy_options)?;
     Ok(())
 }

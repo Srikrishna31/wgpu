@@ -100,7 +100,6 @@ pub async fn run() {
                                 }
                                 Err(wgpu::SurfaceError::OutOfMemory) => elwt.exit(),
                                 Err(wgpu::SurfaceError::Timeout) => log::warn!("Surface timeout"),
-                                Err(e) => eprintln!("{:?}", e),
                             }
                         }
 

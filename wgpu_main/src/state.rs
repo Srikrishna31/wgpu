@@ -1,15 +1,12 @@
-use crate::model::DrawModel;
 use crate::{
     camera::{Camera, CameraUniform},
     camera_controller::CameraController,
     instance::{Instance as ObjectInstance, InstanceRaw},
-    model,
-    model::{Model, ModelVertex, Vertex},
+    model::{DrawModel, Model, ModelVertex, Vertex},
     resources,
     texture::Texture,
 };
 use wgpu::util::DeviceExt;
-use wgpu::VertexStepMode::Instance;
 use winit::window::Window;
 
 pub(super) struct State<'window> {
@@ -23,7 +20,7 @@ pub(super) struct State<'window> {
     window: &'window Window,
     render_pipeline: wgpu::RenderPipeline,
     diffuse_bind_group: wgpu::BindGroup,
-    diffuse_texture: Texture,
+    // diffuse_texture: Texture,
     camera: Camera,
     camera_uniform: CameraUniform,
     camera_buffer: wgpu::Buffer,
@@ -70,7 +67,6 @@ impl<'window> State<'window> {
                         wgpu::Limits::default()
                     },
                     label: None,
-                    ..Default::default()
                 },
                 None,
             )
@@ -85,8 +81,7 @@ impl<'window> State<'window> {
         let surface_format = surface_caps
             .formats
             .iter()
-            .filter(|f| f.is_srgb())
-            .next()
+            .find(|f| f.is_srgb())
             .cloned()
             .unwrap_or(surface_caps.formats[0]);
 
@@ -281,7 +276,7 @@ impl<'window> State<'window> {
             window,
             render_pipeline,
             diffuse_bind_group,
-            diffuse_texture,
+            // diffuse_texture,
             camera,
             camera_buffer,
             camera_bind_group,
