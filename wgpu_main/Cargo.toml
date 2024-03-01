@@ -16,6 +16,8 @@ tokio= { version = "1", features = ["full"] }
 bytemuck = { version = "1", features = ["derive"] }
 anyhow = "1.0"
 cgmath = "0.18"
+tobj = {version = "4", features = ["async"]}
+reqwest = "0.11"
 [dependencies.image]
 version = "0.24"
 default-features = false
@@ -30,7 +32,8 @@ wasm-bindgen-futures = "0.4"
 web-sys = {version="0.3", features=[
     "Document",
     "Window",
-    "Element"
+    "Element",
+    "Location",
 ]}
 
 

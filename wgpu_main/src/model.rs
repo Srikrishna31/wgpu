@@ -1,3 +1,5 @@
+use crate::texture::Texture;
+
 /// Making `Vertex` a trait will allow us to abstract out the `VertexBufferLayout` creation code to
 /// make creating `RenderPipeline`s easier.
 pub trait Vertex {
@@ -53,4 +55,23 @@ impl Vertex for ModelVertex {
             ],
         }
     }
+}
+
+pub struct Model {
+    pub meshes: Vec<Mesh>,
+    pub materials: Vec<Material>,
+}
+
+pub struct Material {
+    pub name: String,
+    pub diffuse_texture: Texture,
+    pub bind_group: wgpu::BindGroup,
+}
+
+pub struct Mesh {
+    pub name: String,
+    pub vertex_buffer: wgpu::Buffer,
+    pub index_buffer: wgpu::Buffer,
+    pub num_elements: u32,
+    pub material: usize,
 }

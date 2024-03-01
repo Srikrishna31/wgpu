@@ -1,6 +1,7 @@
+use crate::resources::load_binary;
 use anyhow::*;
 use image::GenericImageView;
-use wgpu::{Device, SurfaceConfiguration};
+use wgpu::{Device, Queue, SurfaceConfiguration};
 
 pub struct Texture {
     pub texture: wgpu::Texture,
@@ -133,5 +134,14 @@ impl Texture {
             view,
             sampler,
         }
+    }
+
+    /// The `load_texture` method will be useful when we load the textures for our models, as
+    /// `include_bytes!` requires that we know the name of the file at compile time, which we can't
+    /// really guarantee with model textures.
+    pub async fn load_texture(file_name: &str, device: &Device, queue: &Queue) -> Result<Texture> {
+        let data = load_binary(file_name).await?;
+
+        Texture::from_bytes(device, queue, &data, file_name)
     }
 }
