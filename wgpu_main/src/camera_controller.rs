@@ -66,7 +66,7 @@ impl CameraController {
         let forward_mag = forward.magnitude();
 
         // Prevents glitching when the camera gets too close to the center of the scene.
-        if self.is_right_pressed && forward_mag > self.speed {
+        if self.is_forward_pressed && forward_mag > self.speed {
             camera.eye += forward_norm * self.speed;
         }
         if self.is_backward_pressed {

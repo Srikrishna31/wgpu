@@ -1,4 +1,5 @@
 use crate::texture::Texture;
+use std::ops::Range;
 
 /// Making `Vertex` a trait will allow us to abstract out the `VertexBufferLayout` creation code to
 /// make creating `RenderPipeline`s easier.
@@ -68,10 +69,36 @@ pub struct Material {
     pub bind_group: wgpu::BindGroup,
 }
 
+/// `Mesh` holds a vertex buffer, an index buffer, and the number of indices in the mesh. We're
+/// using a `usize` for the material. This `usize` will index the `materials` list when it is time to draw.
 pub struct Mesh {
     pub name: String,
     pub vertex_buffer: wgpu::Buffer,
     pub index_buffer: wgpu::Buffer,
     pub num_elements: u32,
     pub material: usize,
+}
+
+pub trait DrawModel<'a> {
+    fn draw_mesh(&mut self, mesh: &'a Mesh);
+    fn draw_mesh_instanced(&mut self, mesh: &'a Mesh, instances: Range<u32>);
+}
+
+impl<'a, 'b> DrawModel<'b> for wgpu::RenderPass<'a>
+where
+    'b: 'a,
+{
+    fn draw_mesh(&mut self, mesh: &'b Mesh) {
+        self.draw_mesh_instanced(mesh, 0..1);
+    }
+
+    fn draw_mesh_instanced(&mut self, mesh: &'b Mesh, instances: Range<u32>) {
+        self.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
+        self.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+
+        // When using an index buffer, you need to use draw_indexed. The draw method ignores the
+        // index buffer. Also, make sure you use the number of indices, not vertices, as your
+        // model will either draw wrong or the method will panic because there are not enough indices.
+        self.draw_indexed(0..mesh.num_elements, 0, instances);
+    }
 }

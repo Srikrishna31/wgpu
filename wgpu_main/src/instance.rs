@@ -1,5 +1,4 @@
-use cgmath::prelude::*;
-use cgmath::Matrix4;
+use cgmath::{prelude::*, Deg, Matrix4, Quaternion, Vector3};
 use wgpu::util::DeviceExt;
 use wgpu::Device;
 
@@ -15,8 +14,8 @@ use wgpu::Device;
 /// directly in the shader would be a pain, as quaternions don't have a WGSL analog. So, we'll convert
 /// the `Instance` data into a matrix and store it in a struct called `InstanceRaw`.
 pub(crate) struct Instance {
-    position: cgmath::Vector3<f32>,
-    rotation: cgmath::Quaternion<f32>,
+    position: Vector3<f32>,
+    rotation: Quaternion<f32>,
 }
 
 /// This is the data that goes into wgpu::Buffer. We keep these separate so that we can update `Instance`
@@ -42,24 +41,22 @@ impl Instance {
         Self::NUM_INSTANCES_PER_ROW as f32 * 0.5,
     );
 
+    const SPACE_BETWEEN: f32 = 3.0;
     pub(crate) fn create_instances(device: &Device) -> (Vec<Instance>, wgpu::Buffer) {
         let instances = (0..Self::NUM_INSTANCES_PER_ROW)
             .flat_map(|z| {
                 (0..Self::NUM_INSTANCES_PER_ROW).map(move |x| {
-                    let position = cgmath::Vector3 {
-                        x: x as f32,
-                        y: 0.0,
-                        z: z as f32,
-                    } - Self::INSTANCE_DISPLACEMENT;
+                    let x =
+                        Self::SPACE_BETWEEN * (x as f32 - Self::NUM_INSTANCES_PER_ROW as f32 / 2.0);
+                    let z =
+                        Self::SPACE_BETWEEN * (z as f32 - Self::NUM_INSTANCES_PER_ROW as f32 / 2.0);
+                    let position = cgmath::Vector3 { x, y: 0.0, z };
                     let rotation = if position.is_zero() {
                         // this is needed so an object at (0, 0, 0) doesn't get scaled to zero
                         // as Quaternions can't affect scale if they're not created correctly
-                        cgmath::Quaternion::from_axis_angle(
-                            cgmath::Vector3::unit_z(),
-                            cgmath::Deg(0.0),
-                        )
+                        Quaternion::from_axis_angle(Vector3::unit_z(), Deg(0.0))
                     } else {
-                        cgmath::Quaternion::from_axis_angle(position.normalize(), cgmath::Deg(45.0))
+                        Quaternion::from_axis_angle(position.normalize(), Deg(45.0))
                     };
                     Self { position, rotation }
                 })

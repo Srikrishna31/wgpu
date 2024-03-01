@@ -1,8 +1,11 @@
+use crate::model::DrawModel;
 use crate::{
     camera::{Camera, CameraUniform},
     camera_controller::CameraController,
     instance::{Instance as ObjectInstance, InstanceRaw},
-    model::{ModelVertex, Vertex},
+    model,
+    model::{Model, ModelVertex, Vertex},
+    resources,
     texture::Texture,
 };
 use wgpu::util::DeviceExt;
@@ -29,6 +32,7 @@ pub(super) struct State<'window> {
     instances: Vec<ObjectInstance>,
     instance_buffer: wgpu::Buffer,
     depth_texture: Texture,
+    object_model: Model,
 }
 
 impl<'window> State<'window> {
@@ -262,6 +266,10 @@ impl<'window> State<'window> {
             multiview: None,
         });
 
+        let object_model =
+            resources::load_model("cube.obj", &device, &queue, &texture_bind_group_layout)
+                .await
+                .unwrap();
         let (instances, instance_buffer) = ObjectInstance::create_instances(&device);
 
         Self {
@@ -282,6 +290,7 @@ impl<'window> State<'window> {
             instances,
             instance_buffer,
             depth_texture,
+            object_model,
         }
     }
 
@@ -359,16 +368,13 @@ impl<'window> State<'window> {
                 occlusion_query_set: None,
             });
 
-            render_pass.set_pipeline(&self.render_pipeline);
+            render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
             render_pass.set_bind_group(0, &self.diffuse_bind_group, &[]);
             render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
-            // render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-            render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
-            // render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-            // When using an index buffer, you need to use draw_indexed. The draw method ignores the
-            // index buffer. Also, make sure you use the number of indices, not vertices, as your
-            // model will either draw wrong or the method will panic because there are not enough indices.
-            // render_pass.draw_indexed(0..self.num_indices, 0, 0..self.instances.len() as _);
+            render_pass.set_pipeline(&self.render_pipeline);
+
+            render_pass
+                .draw_mesh_instanced(&self.object_model.meshes[0], 0..self.instances.len() as u32);
         }
 
         // submit will accept anything that implements IntoIter
