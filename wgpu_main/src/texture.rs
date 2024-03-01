@@ -1,5 +1,6 @@
 use anyhow::*;
 use image::GenericImageView;
+use wgpu::{Device, SurfaceConfiguration};
 
 pub struct Texture {
     pub texture: wgpu::Texture,
@@ -80,5 +81,57 @@ impl Texture {
             view,
             sampler,
         })
+    }
+
+    pub(crate) const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
+
+    /// We need the `DEPTH_FORMAT` for creating the depth stage of the `render_pipeline` and for
+    /// creating the depth texture itself.
+    pub(crate) fn create_depth_texture(
+        device: &Device,
+        config: &SurfaceConfiguration,
+        label: &str,
+    ) -> Texture {
+        // Our depth texture needs to be the same size as our screen if we want things to render correctly.
+        let size = wgpu::Extent3d {
+            width: config.width,
+            height: config.height,
+            depth_or_array_layers: 1,
+        };
+        let desc = wgpu::TextureDescriptor {
+            label: Some(label),
+            size,
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: Self::DEPTH_FORMAT,
+            // Since we are rendering to this texture, we need to add the RENDER_ATTACHMENT usage.
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        };
+        let texture = device.create_texture(&desc);
+        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+        // We technically don't need a sampler for the depth texture, but out `Texture` struct requires
+        // it, and we need one if we ever want to sample it.
+        let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Linear,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            // If we do decide to render our depth texture, we need to use `CompareFunction::LessEqual`.
+            // This is due to how the `sampler_comparison` and `textureSampleCompare()` interact with
+            // the `texture()` function in GLSL.
+            compare: Some(wgpu::CompareFunction::LessEqual),
+            lod_max_clamp: 100.0,
+            lod_min_clamp: 0.0,
+            ..Default::default()
+        });
+        Self {
+            texture,
+            view,
+            sampler,
+        }
     }
 }
