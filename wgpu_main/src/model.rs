@@ -1,5 +1,6 @@
 use crate::texture::Texture;
 use std::ops::Range;
+use wgpu::BindGroup;
 
 /// Making `Vertex` a trait will allow us to abstract out the `VertexBufferLayout` creation code to
 /// make creating `RenderPipeline`s easier.
@@ -80,22 +81,45 @@ pub struct Mesh {
 }
 
 pub trait DrawModel<'a> {
-    fn draw_mesh(&mut self, mesh: &'a Mesh);
-    fn draw_mesh_instanced(&mut self, mesh: &'a Mesh, instances: Range<u32>);
+    fn draw_mesh(
+        &mut self,
+        mesh: &'a Mesh,
+        material: &'a Material,
+        camera_bind_group: &'a BindGroup,
+    );
+    fn draw_mesh_instanced(
+        &mut self,
+        mesh: &'a Mesh,
+        material: &'a Material,
+        camera_bind_group: &'a BindGroup,
+        instances: Range<u32>,
+    );
 }
 
 impl<'a, 'b> DrawModel<'b> for wgpu::RenderPass<'a>
 where
     'b: 'a,
 {
-    fn draw_mesh(&mut self, mesh: &'b Mesh) {
-        self.draw_mesh_instanced(mesh, 0..1);
+    fn draw_mesh(
+        &mut self,
+        mesh: &'b Mesh,
+        material: &'b Material,
+        camera_bind_group: &'b BindGroup,
+    ) {
+        self.draw_mesh_instanced(mesh, material, camera_bind_group, 0..1);
     }
 
-    fn draw_mesh_instanced(&mut self, mesh: &'b Mesh, instances: Range<u32>) {
+    fn draw_mesh_instanced(
+        &mut self,
+        mesh: &'b Mesh,
+        material: &'a Material,
+        camera_bind_group: &'a BindGroup,
+        instances: Range<u32>,
+    ) {
         self.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
         self.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-
+        self.set_bind_group(0, &material.bind_group, &[]);
+        self.set_bind_group(1, camera_bind_group, &[]);
         // When using an index buffer, you need to use draw_indexed. The draw method ignores the
         // index buffer. Also, make sure you use the number of indices, not vertices, as your
         // model will either draw wrong or the method will panic because there are not enough indices.
