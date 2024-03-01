@@ -366,11 +366,8 @@ impl<'window> State<'window> {
             render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
             render_pass.set_pipeline(&self.render_pipeline);
 
-            let mesh = &self.object_model.meshes[0];
-            let material = &self.object_model.materials[mesh.material];
-            render_pass.draw_mesh_instanced(
-                mesh,
-                material,
+            render_pass.draw_model_instanced(
+                &self.object_model,
                 &self.camera_bind_group,
                 0..self.instances.len() as u32,
             );

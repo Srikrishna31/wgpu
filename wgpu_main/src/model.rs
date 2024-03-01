@@ -94,6 +94,15 @@ pub trait DrawModel<'a> {
         camera_bind_group: &'a BindGroup,
         instances: Range<u32>,
     );
+
+    fn draw_model(&mut self, model: &'a Model, camera_bind_group: &'a BindGroup);
+
+    fn draw_model_instanced(
+        &mut self,
+        model: &'a Model,
+        camera_bind_group: &'a BindGroup,
+        instances: Range<u32>,
+    );
 }
 
 impl<'a, 'b> DrawModel<'b> for wgpu::RenderPass<'a>
@@ -124,5 +133,21 @@ where
         // index buffer. Also, make sure you use the number of indices, not vertices, as your
         // model will either draw wrong or the method will panic because there are not enough indices.
         self.draw_indexed(0..mesh.num_elements, 0, instances);
+    }
+
+    fn draw_model(&mut self, model: &'b Model, camera_bind_group: &'b BindGroup) {
+        self.draw_model_instanced(model, camera_bind_group, 0..1);
+    }
+
+    fn draw_model_instanced(
+        &mut self,
+        model: &'b Model,
+        camera_bind_group: &'b BindGroup,
+        instances: Range<u32>,
+    ) {
+        for mesh in &model.meshes {
+            let material = &model.materials[mesh.material];
+            self.draw_mesh_instanced(mesh, material, camera_bind_group, instances.clone());
+        }
     }
 }
