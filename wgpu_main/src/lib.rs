@@ -3,6 +3,7 @@ mod camera_controller;
 mod instance;
 mod state;
 mod texture;
+mod model;
 
 use state::State;
 use winit::{
