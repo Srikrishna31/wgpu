@@ -1,9 +1,9 @@
-use crate::camera_controller::CameraController;
-use crate::texture::Texture;
 use crate::{
     camera::{Camera, CameraUniform},
+    camera_controller::CameraController,
     instance::{Instance as ObjectInstance, InstanceRaw},
-    texture, Vertex, INDICES, PENTAGON,
+    model::{ModelVertex, Vertex},
+    texture::Texture,
 };
 use wgpu::util::DeviceExt;
 use wgpu::VertexStepMode::Instance;
@@ -19,11 +19,8 @@ pub(super) struct State<'window> {
     // contains unsafe references to the window's resources.
     window: &'window Window,
     render_pipeline: wgpu::RenderPipeline,
-    vertex_buffer: wgpu::Buffer,
-    index_buffer: wgpu::Buffer,
-    num_indices: u32,
     diffuse_bind_group: wgpu::BindGroup,
-    diffuse_texture: texture::Texture,
+    diffuse_texture: Texture,
     camera: Camera,
     camera_uniform: CameraUniform,
     camera_buffer: wgpu::Buffer,
@@ -103,23 +100,11 @@ impl<'window> State<'window> {
 
         let diffuse_bytes = include_bytes!("../happy-tree.png");
         let diffuse_texture =
-            texture::Texture::from_bytes(&device, &queue, diffuse_bytes, "happy-tree.png").unwrap();
+            Texture::from_bytes(&device, &queue, diffuse_bytes, "happy-tree.png").unwrap();
 
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("shaders/shader_instances.wgsl").into()),
-        });
-
-        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Vertex Buffer"),
-            contents: bytemuck::cast_slice(PENTAGON),
-            usage: wgpu::BufferUsages::VERTEX,
-        });
-
-        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Index Buffer"),
-            contents: bytemuck::cast_slice(INDICES),
-            usage: wgpu::BufferUsages::INDEX,
         });
 
         let depth_texture = Texture::create_depth_texture(&device, &config, "depth_texture");
@@ -232,7 +217,7 @@ impl<'window> State<'window> {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "vs_main",
-                buffers: &[Vertex::desc(), InstanceRaw::desc()],
+                buffers: &[ModelVertex::desc(), InstanceRaw::desc()],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
@@ -287,9 +272,6 @@ impl<'window> State<'window> {
             size,
             window,
             render_pipeline,
-            vertex_buffer,
-            index_buffer,
-            num_indices: INDICES.len() as u32,
             diffuse_bind_group,
             diffuse_texture,
             camera,
@@ -380,13 +362,13 @@ impl<'window> State<'window> {
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_bind_group(0, &self.diffuse_bind_group, &[]);
             render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
-            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+            // render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
-            render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            // render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
             // When using an index buffer, you need to use draw_indexed. The draw method ignores the
             // index buffer. Also, make sure you use the number of indices, not vertices, as your
             // model will either draw wrong or the method will panic because there are not enough indices.
-            render_pass.draw_indexed(0..self.num_indices, 0, 0..self.instances.len() as _);
+            // render_pass.draw_indexed(0..self.num_indices, 0, 0..self.instances.len() as _);
         }
 
         // submit will accept anything that implements IntoIter
