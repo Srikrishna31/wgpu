@@ -1,3 +1,4 @@
+use crate::model::DrawLight;
 use crate::{
     camera::{Camera, CameraUniform},
     camera_controller::CameraController,
@@ -9,6 +10,8 @@ use crate::{
 };
 use cgmath::Rotation3;
 use wgpu::util::DeviceExt;
+use wgpu::PipelineLayout;
+use wgpu::{BindGroupLayout, Device, RenderPipeline};
 use winit::window::Window;
 
 pub(super) struct State<'window> {
@@ -36,6 +39,7 @@ pub(super) struct State<'window> {
     light_buffer: wgpu::Buffer,
     light_bind_group: wgpu::BindGroup,
     light_bind_group_layout: wgpu::BindGroupLayout,
+    light_render_pipeline: wgpu::RenderPipeline,
 }
 
 impl<'window> State<'window> {
@@ -106,11 +110,6 @@ impl<'window> State<'window> {
         let diffuse_bytes = include_bytes!("../happy-tree.png");
         let diffuse_texture =
             Texture::from_bytes(&device, &queue, diffuse_bytes, "happy-tree.png").unwrap();
-
-        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("shaders/shader_instances.wgsl").into()),
-        });
 
         let depth_texture = Texture::create_depth_texture(&device, &config, "depth_texture");
 
@@ -222,62 +221,51 @@ impl<'window> State<'window> {
                 push_constant_ranges: &[],
             });
 
-        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("Render Pipeline"),
-            layout: Some(&render_pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: &shader,
-                entry_point: "vs_main",
-                buffers: &[ModelVertex::desc(), InstanceRaw::desc()],
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &shader,
-                entry_point: "fs_main",
-                targets: &[Some(wgpu::ColorTargetState {
-                    format: config.format,
-                    blend: Some(wgpu::BlendState::REPLACE),
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-            }),
-            // The primitive field describes how to interpret our vertices when converting them into
-            // triangles.
-            primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
-                strip_index_format: None,
-                front_face: wgpu::FrontFace::Ccw,
-                cull_mode: Some(wgpu::Face::Back),
-                // Requires Features::DEPTH_CLIP_CONTROL
-                unclipped_depth: false,
-                // Setting this to anything other than Fill requires Features::NON_FILL_POLYGON_MODE
-                polygon_mode: wgpu::PolygonMode::Fill,
-                // Requires Features::CONSERVATIVE_RASTERIZATION
-                conservative: false,
-            },
-            depth_stencil: Some(wgpu::DepthStencilState {
-                format: Texture::DEPTH_FORMAT,
-                depth_write_enabled: true,
-                // The `depth_compare` function tells us when to discard a new pixel. Using `LESS`
-                // means pixels will be drawn front to back.
-                depth_compare: wgpu::CompareFunction::Less,
-                // There's another type of buffer called a stencil buffer. It's common practice to
-                // store the stencil buffer and depth buffer in the same texture. These fields control
-                // values for stencil testing.
-                stencil: wgpu::StencilState::default(),
-                bias: wgpu::DepthBiasState::default(),
-            }),
-            multisample: wgpu::MultisampleState {
-                count: 1,
-                mask: !0,
-                alpha_to_coverage_enabled: false,
-            },
-            multiview: None,
-        });
+        let render_pipeline = {
+            let shader = wgpu::ShaderModuleDescriptor {
+                label: Some("Shader"),
+                source: wgpu::ShaderSource::Wgsl(
+                    include_str!("shaders/shader_instances.wgsl").into(),
+                ),
+            };
+
+            Self::create_render_pipeline(
+                &device,
+                &render_pipeline_layout,
+                config.format,
+                Some(Texture::DEPTH_FORMAT),
+                &[ModelVertex::desc(), InstanceRaw::desc()],
+                shader,
+            )
+        };
 
         let object_model =
             resources::load_model("cube.obj", &device, &queue, &texture_bind_group_layout)
                 .await
                 .unwrap();
         let (instances, instance_buffer) = ObjectInstance::create_instances(&device);
+
+        let light_render_pipeline = {
+            let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Light Render Pipeline Layout"),
+                bind_group_layouts: &[&camera_bind_group_layout, &light_bind_group_layout],
+                push_constant_ranges: &[],
+            });
+
+            let shader = wgpu::ShaderModuleDescriptor {
+                label: Some("Light Shader"),
+                source: wgpu::ShaderSource::Wgsl(include_str!("shaders/light.wgsl").into()),
+            };
+
+            Self::create_render_pipeline(
+                &device,
+                &layout,
+                config.format,
+                Some(Texture::DEPTH_FORMAT),
+                &[ModelVertex::desc(), InstanceRaw::desc()],
+                shader,
+            )
+        };
 
         Self {
             surface,
@@ -302,9 +290,71 @@ impl<'window> State<'window> {
             light_bind_group,
             light_bind_group_layout,
             light: LightUniform::default(),
+            light_render_pipeline,
         }
     }
 
+    fn create_render_pipeline(
+        device: &Device,
+        layout: &PipelineLayout,
+        color_format: wgpu::TextureFormat,
+        depth_format: Option<wgpu::TextureFormat>,
+        vertex_layouts: &[wgpu::VertexBufferLayout],
+        shader: wgpu::ShaderModuleDescriptor,
+    ) -> RenderPipeline {
+        let shader = device.create_shader_module(shader);
+
+        device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("Render Pipeline"),
+            layout: Some(layout),
+            vertex: wgpu::VertexState {
+                module: &shader,
+                entry_point: "vs_main",
+                buffers: vertex_layouts,
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &shader,
+                entry_point: "fs_main",
+                targets: &[Some(wgpu::ColorTargetState {
+                    format: color_format,
+                    blend: Some(wgpu::BlendState::REPLACE),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+            }),
+            // The primitive field describes how to interpret our vertices when converting them into
+            // triangles.
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                strip_index_format: None,
+                front_face: wgpu::FrontFace::Ccw,
+                // Setting this to anything other than Fill requires Features::NON_FILL_POLYGON_MODE
+                cull_mode: Some(wgpu::Face::Back),
+                // Requires Features::DEPTH_CLIP_CONTROL
+                unclipped_depth: false,
+                polygon_mode: wgpu::PolygonMode::Fill,
+                // Requires Features::CONSERVATIVE_RASTERIZATION
+                conservative: false,
+            },
+            depth_stencil: depth_format.map(|format| wgpu::DepthStencilState {
+                format,
+                depth_write_enabled: true,
+                // The `depth_compare` function tells us when to discard a new pixel. Using `LESS`
+                // means pixels will be drawn front to back.
+                depth_compare: wgpu::CompareFunction::Less,
+                // There's another type of buffer called a stencil buffer. It's common practice to
+                // store the stencil buffer and depth buffer in the same texture. These fields control
+                // values for stencil testing.
+                stencil: wgpu::StencilState::default(),
+                bias: wgpu::DepthBiasState::default(),
+            }),
+            multisample: wgpu::MultisampleState {
+                count: 1,
+                mask: !0,
+                alpha_to_coverage_enabled: false,
+            },
+            multiview: None,
+        })
+    }
     pub fn window(&self) -> &Window {
         self.window
     }
@@ -389,8 +439,14 @@ impl<'window> State<'window> {
             });
 
             render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
-            render_pass.set_pipeline(&self.render_pipeline);
+            render_pass.set_pipeline(&self.light_render_pipeline);
+            render_pass.draw_light_model(
+                &self.object_model,
+                &self.camera_bind_group,
+                &self.light_bind_group,
+            );
 
+            render_pass.set_pipeline(&self.render_pipeline);
             render_pass.draw_model_instanced(
                 &self.object_model,
                 &self.camera_bind_group,
