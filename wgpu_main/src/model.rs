@@ -1,3 +1,4 @@
+use crate::light::LightUniform;
 use crate::texture::Texture;
 use std::ops::Range;
 use wgpu::BindGroup;
@@ -86,21 +87,29 @@ pub trait DrawModel<'a> {
         mesh: &'a Mesh,
         material: &'a Material,
         camera_bind_group: &'a BindGroup,
+        light_bind_group: &'a BindGroup,
     );
     fn draw_mesh_instanced(
         &mut self,
         mesh: &'a Mesh,
         material: &'a Material,
         camera_bind_group: &'a BindGroup,
+        light_bind_group: &'a BindGroup,
         instances: Range<u32>,
     );
 
-    fn draw_model(&mut self, model: &'a Model, camera_bind_group: &'a BindGroup);
+    fn draw_model(
+        &mut self,
+        model: &'a Model,
+        camera_bind_group: &'a BindGroup,
+        light_bind_group: &'a BindGroup,
+    );
 
     fn draw_model_instanced(
         &mut self,
         model: &'a Model,
         camera_bind_group: &'a BindGroup,
+        light_bind_group: &'a BindGroup,
         instances: Range<u32>,
     );
 }
@@ -114,8 +123,9 @@ where
         mesh: &'b Mesh,
         material: &'b Material,
         camera_bind_group: &'b BindGroup,
+        light_bind_group: &'b BindGroup,
     ) {
-        self.draw_mesh_instanced(mesh, material, camera_bind_group, 0..1);
+        self.draw_mesh_instanced(mesh, material, camera_bind_group, light_bind_group, 0..1);
     }
 
     fn draw_mesh_instanced(
@@ -123,31 +133,45 @@ where
         mesh: &'b Mesh,
         material: &'a Material,
         camera_bind_group: &'a BindGroup,
+        light_bind_group: &'a BindGroup,
         instances: Range<u32>,
     ) {
         self.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
         self.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
         self.set_bind_group(0, &material.bind_group, &[]);
         self.set_bind_group(1, camera_bind_group, &[]);
+        self.set_bind_group(2, light_bind_group, &[]);
         // When using an index buffer, you need to use draw_indexed. The draw method ignores the
         // index buffer. Also, make sure you use the number of indices, not vertices, as your
         // model will either draw wrong or the method will panic because there are not enough indices.
         self.draw_indexed(0..mesh.num_elements, 0, instances);
     }
 
-    fn draw_model(&mut self, model: &'b Model, camera_bind_group: &'b BindGroup) {
-        self.draw_model_instanced(model, camera_bind_group, 0..1);
+    fn draw_model(
+        &mut self,
+        model: &'b Model,
+        camera_bind_group: &'b BindGroup,
+        light_bind_group: &'b BindGroup,
+    ) {
+        self.draw_model_instanced(model, camera_bind_group, light_bind_group, 0..1);
     }
 
     fn draw_model_instanced(
         &mut self,
         model: &'b Model,
         camera_bind_group: &'b BindGroup,
+        light_bind_group: &'b BindGroup,
         instances: Range<u32>,
     ) {
         for mesh in &model.meshes {
             let material = &model.materials[mesh.material];
-            self.draw_mesh_instanced(mesh, material, camera_bind_group, instances.clone());
+            self.draw_mesh_instanced(
+                mesh,
+                material,
+                camera_bind_group,
+                light_bind_group,
+                instances.clone(),
+            );
         }
     }
 }

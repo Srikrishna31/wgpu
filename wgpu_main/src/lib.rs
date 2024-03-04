@@ -1,6 +1,7 @@
 mod camera;
 mod camera_controller;
 mod instance;
+mod light;
 mod model;
 mod resources;
 mod state;

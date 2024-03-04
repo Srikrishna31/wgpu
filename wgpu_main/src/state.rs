@@ -2,10 +2,12 @@ use crate::{
     camera::{Camera, CameraUniform},
     camera_controller::CameraController,
     instance::{Instance as ObjectInstance, InstanceRaw},
+    light::LightUniform,
     model::{DrawModel, Model, ModelVertex, Vertex},
     resources,
     texture::Texture,
 };
+use cgmath::Rotation3;
 use wgpu::util::DeviceExt;
 use winit::window::Window;
 
@@ -30,6 +32,10 @@ pub(super) struct State<'window> {
     instance_buffer: wgpu::Buffer,
     depth_texture: Texture,
     object_model: Model,
+    light: LightUniform,
+    light_buffer: wgpu::Buffer,
+    light_bind_group: wgpu::BindGroup,
+    light_bind_group_layout: wgpu::BindGroupLayout,
 }
 
 impl<'window> State<'window> {
@@ -203,10 +209,16 @@ impl<'window> State<'window> {
             }],
         });
 
+        let (light_buffer, light_bind_group_layout, light_bind_group) =
+            LightUniform::create_bind_group(&device);
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[&texture_bind_group_layout, &camera_bind_group_layout],
+                bind_group_layouts: &[
+                    &texture_bind_group_layout,
+                    &camera_bind_group_layout,
+                    &light_bind_group_layout,
+                ],
                 push_constant_ranges: &[],
             });
 
@@ -286,6 +298,10 @@ impl<'window> State<'window> {
             instance_buffer,
             depth_texture,
             object_model,
+            light_buffer,
+            light_bind_group,
+            light_bind_group_layout,
+            light: LightUniform::default(),
         }
     }
 
@@ -316,6 +332,15 @@ impl<'window> State<'window> {
             0,
             bytemuck::cast_slice(&[self.camera_uniform]),
         );
+
+        // Update the light
+        let old_position: cgmath::Vector3<f32> = self.light.position.into();
+        self.light.position =
+            (cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(1.0))
+                * old_position)
+                .into();
+        self.queue
+            .write_buffer(&self.light_buffer, 0, bytemuck::cast_slice(&[self.light]));
     }
 
     pub(crate) fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
@@ -369,6 +394,7 @@ impl<'window> State<'window> {
             render_pass.draw_model_instanced(
                 &self.object_model,
                 &self.camera_bind_group,
+                &self.light_bind_group,
                 0..self.instances.len() as u32,
             );
         }
