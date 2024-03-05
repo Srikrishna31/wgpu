@@ -36,6 +36,14 @@ use wgpu::{
 /// directly in line with the light source, and will receive the light's full intensity. A value of
 /// 0.0 or lower means that the fragment is perpendicular or facing away from the light source, and
 /// therefor will be dark.
+///
+/// # Specular Lighting
+/// It describes the highlights that appear on objects when viewed from certain angles.
+/// Basically, some of the light can reflect off the surface like a mirror. The location of the highlight
+/// shifts depending on what angle you view it at.
+/// ![Specular Lighting][specular_diagram.png]
+/// Because this is relative to the view angle, we are going to need to pass in the camera's position
+/// both into the fragment shader and into the vertex shader.
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub(crate) struct LightUniform {

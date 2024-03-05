@@ -182,9 +182,7 @@ impl<'window> State<'window> {
                 label: Some("Camera Bind Group Layout"),
                 entries: &[wgpu::BindGroupLayoutEntry {
                     binding: 0,
-                    // We set visibility to ShaderStages::VERTEX as we only really need camera information
-                    // in the vertex shader, as that's what we'll use to manipulate our vertices.
-                    visibility: wgpu::ShaderStages::VERTEX,
+                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Uniform,
                         // This means that the location of the data in the buffer may change. This will

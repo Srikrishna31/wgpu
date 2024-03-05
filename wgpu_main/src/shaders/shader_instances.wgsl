@@ -10,6 +10,7 @@ struct InstanceInput {
 };
 
 struct CameraUniform {
+    view_pos: vec4<f32>,
     view_proj: mat4x4<f32>,
 };
 
@@ -79,7 +80,20 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let diffuse_strength = max(dot(in.world_normal, light_dir), 0.0);
     let diffuse_color = light.color * diffuse_strength;
 
-    let result = (ambient_color + diffuse_color) * object_color.xyz;
+    // Specular lighting
+    let view_dir = normalize(camera.view_pos.xyz - in.world_position);
+    // The Blinn part of the Blinn-Phong comes from the realization that if you add the `view_dir` and `light_dir` vectors
+    // together, and normalize the result, and use the dot product of that with the normal, you get the roughly the same
+    // results without the issues that using `reflect_dir` had.
+//    let reflect_dir = reflect(-light_dir, in.world_normal);
+    let halfway_dir = normalize(light_dir + view_dir);
+//    let specular_strength = pow(max(dot(view_dir, reflect_dir), 0.0), 32.0);
+    let specular_strength = pow(max(dot(in.world_normal, halfway_dir), 0.0), 32.0);
+    let specular_color = specular_strength * light.color;
+
+
+    // Combine the lighting
+    let result = (ambient_color + diffuse_color + specular_color) * object_color.xyz;
 
     return vec4<f32>(result, object_color.a);
 }
