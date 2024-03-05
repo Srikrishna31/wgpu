@@ -262,7 +262,7 @@ impl<'window> State<'window> {
                 &layout,
                 config.format,
                 Some(Texture::DEPTH_FORMAT),
-                &[ModelVertex::desc(), InstanceRaw::desc()],
+                &[ModelVertex::desc()],
                 shader,
             )
         };
