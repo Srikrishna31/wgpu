@@ -1,3 +1,4 @@
+use crate::model;
 use cgmath::{prelude::*, Deg, Matrix4, Quaternion, Vector3};
 use wgpu::util::DeviceExt;
 use wgpu::Device;
@@ -21,16 +22,32 @@ pub(crate) struct Instance {
 /// This is the data that goes into wgpu::Buffer. We keep these separate so that we can update `Instance`
 /// as much as we want without needing to mess with matrices. We only need to update the raw data
 /// before we draw.
+///
+/// # Normal Calculation
+/// We need to use the model matrix to transform the normals to be in the right direction. We only
+/// want the rotation data, though. A normal represents a direction, and should be a unit vector
+/// throughout the calculation. We can get our normals in the right direction using what is called
+/// a normal matrix.
+///
+/// We could compute the normal matrix in the shader, but that would involve inverting the
+/// `model_matrix`, and WGSL doesn't actually have an inverse function. We would have to code our own.
+/// On top of that, computing the inverse of a matrix is actually really expensive, especially doing
+/// that computation for every vertex.
+///
+/// Instead, we're going to add a `normal` matrix field to `InstanceRaw`. Instead of inverting the
+/// model matrix, we'll just use the instance's rotation to create a `Matrix3`.
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub(crate) struct InstanceRaw {
     model: [[f32; 4]; 4],
+    normal: [[f32; 3]; 3],
 }
 
 impl Instance {
     pub(crate) fn to_raw(&self) -> InstanceRaw {
         InstanceRaw {
             model: (Matrix4::from_translation(self.position) * Matrix4::from(self.rotation)).into(),
+            normal: cgmath::Matrix3::from(self.rotation).into(),
         }
     }
 
@@ -69,8 +86,8 @@ impl Instance {
     }
 }
 
-impl InstanceRaw {
-    pub(crate) fn desc() -> wgpu::VertexBufferLayout<'static> {
+impl model::Vertex for InstanceRaw {
+    fn desc() -> wgpu::VertexBufferLayout<'static> {
         use std::mem;
         wgpu::VertexBufferLayout {
             array_stride: mem::size_of::<InstanceRaw>() as wgpu::BufferAddress,
@@ -100,6 +117,21 @@ impl InstanceRaw {
                     offset: mem::size_of::<[f32; 12]>() as wgpu::BufferAddress,
                     shader_location: 8,
                     format: wgpu::VertexFormat::Float32x4,
+                },
+                wgpu::VertexAttribute {
+                    offset: mem::size_of::<[f32; 16]>() as wgpu::BufferAddress,
+                    shader_location: 9,
+                    format: wgpu::VertexFormat::Float32x3,
+                },
+                wgpu::VertexAttribute {
+                    offset: mem::size_of::<[f32; 19]>() as wgpu::BufferAddress,
+                    shader_location: 10,
+                    format: wgpu::VertexFormat::Float32x3,
+                },
+                wgpu::VertexAttribute {
+                    offset: mem::size_of::<[f32; 22]>() as wgpu::BufferAddress,
+                    shader_location: 11,
+                    format: wgpu::VertexFormat::Float32x3,
                 },
             ],
         }

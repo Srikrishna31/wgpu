@@ -19,6 +19,23 @@ use wgpu::{
 /// of the `Phong reflection model`, which cheats a bit at the specular calculation to speed things up.
 ///
 /// The `LightUniform` represents a colored point in space. It is used to represent the light source
+///
+/// # Ambient Lighting
+/// Light has a tendency to bounce around and fill in the shadows. This is called `ambient lighting`.
+/// Modeling this interaction would be computationally expensive, so we just fake it by adding a small
+/// ambient lighting value for the light bouncing off other parts of the scene to light our objects.
+/// The ambient part is based on the light color and the object color.
+///
+/// # Diffuse Lighting
+/// Normals represent the direction a surface is facing. By comparing the normal of a fragment with a
+/// vector pointint to a light source, we get a value of how light/dark that fragment should be. We
+/// compare the vectors using the dot product to get the cosine of the angle between them.
+/// ![Diffuse Lighting][normal_diagram.png]
+///
+/// If the dot product of the normal and light vector is 1.0, that means that the current fragment is
+/// directly in line with the light source, and will receive the light's full intensity. A value of
+/// 0.0 or lower means that the fragment is perpendicular or facing away from the light source, and
+/// therefor will be dark.
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub(crate) struct LightUniform {
