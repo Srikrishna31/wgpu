@@ -68,9 +68,50 @@ pub struct Model {
 pub struct Material {
     pub name: String,
     pub diffuse_texture: Texture,
+    // The r, g and b components of the texture correspond to the x, y and z components of the normal.
+    // All z values should be positive. That's why the normal map has a bluish tint.
+    pub normal_texture: Texture,
     pub bind_group: wgpu::BindGroup,
 }
 
+impl Material {
+    pub fn new(
+        device: &wgpu::Device,
+        name: &str,
+        diffuse_texture: Texture,
+        normal_texture: Texture,
+        layout: &wgpu::BindGroupLayout,
+    ) -> Self {
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&diffuse_texture.view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&diffuse_texture.sampler),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: wgpu::BindingResource::TextureView(&normal_texture.view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 3,
+                    resource: wgpu::BindingResource::Sampler(&normal_texture.sampler),
+                },
+            ],
+            label: None,
+        });
+        Self {
+            name: name.to_string(),
+            diffuse_texture,
+            normal_texture,
+            bind_group,
+        }
+    }
+}
 /// `Mesh` holds a vertex buffer, an index buffer, and the number of indices in the mesh. We're
 /// using a `usize` for the material. This `usize` will index the `materials` list when it is time to draw.
 pub struct Mesh {
