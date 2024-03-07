@@ -105,10 +105,6 @@ impl<'window> State<'window> {
         };
         surface.configure(&device, &config);
 
-        let diffuse_bytes = include_bytes!("../happy-tree.png");
-        let diffuse_texture =
-            Texture::from_bytes(&device, &queue, diffuse_bytes, "happy-tree.png").unwrap();
-
         let depth_texture = Texture::create_depth_texture(&device, &config, "depth_texture");
 
         let texture_bind_group_layout =

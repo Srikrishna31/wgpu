@@ -78,9 +78,9 @@ pub(crate) async fn load_model(
     let mut materials = Vec::new();
     for m in obj_materials? {
         let diffuse_texture =
-            Texture::load_texture(&m.diffuse_texture.unwrap(), device, queue).await?;
+            Texture::load_texture(&m.diffuse_texture.unwrap(), device, queue, false).await?;
         let normal_texture =
-            Texture::load_texture(&m.normal_texture.unwrap(), device, queue).await?;
+            Texture::load_texture(&m.normal_texture.unwrap(), device, queue, true).await?;
 
         materials.push(Material::new(
             device,
@@ -174,7 +174,7 @@ pub(crate) async fn load_model(
             // Average the tangents/bitangents
             for (i, n) in triangles_included.iter().enumerate() {
                 let denom = 1.0 / *n as f32;
-                let mut v = &mut vertices[i];
+                let v = &mut vertices[i];
                 v.tangent = (cgmath::Vector3::from(v.tangent) * denom).into();
                 v.bitangent = (cgmath::Vector3::from(v.bitangent) * denom).into();
             }

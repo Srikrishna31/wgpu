@@ -15,16 +15,27 @@ impl Texture {
         queue: &wgpu::Queue,
         bytes: &[u8],
         label: &str,
+        is_normal_map: bool,
     ) -> Result<Self> {
         let img = image::load_from_memory(bytes)?;
-        Self::from_image(device, queue, &img, Some(label))
+        Self::from_image(device, queue, &img, Some(label), is_normal_map)
     }
 
+    /// # Srgb and normal textures
+    /// We've been using `Rgba8UnormSrgb` for all of our textures. The `Srgb` bit specifies that we
+    /// will be using standard RGB color space. This is also known as linear color space. Linear color
+    /// space has less color density. Even so, it is often used for diffuse textures, as they are
+    /// typically made in `Srgb` color space.
+    ///
+    /// Normal textures aren't made with `Srgb`. Using `Rgba8UnormSrgb` can change how the GPU samples
+    /// the texture. This can make the resulting simulation less accurate. We can avoid these issues
+    /// by using `Rgba8Unorm` for normal textures.
     pub fn from_image(
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         img: &image::DynamicImage,
         label: Option<&str>,
+        is_normal_map: bool,
     ) -> Result<Self> {
         let rgba = img.to_rgba8();
         let dimensions = img.dimensions();
@@ -33,6 +44,13 @@ impl Texture {
             height: dimensions.1,
             depth_or_array_layers: 1,
         };
+        let format = if is_normal_map {
+            wgpu::TextureFormat::Rgba8Unorm
+        } else {
+            // Most images are stored using sRGB, so we need to reflect that here.
+            wgpu::TextureFormat::Rgba8UnormSrgb
+        };
+
         let texture = device.create_texture(&wgpu::TextureDescriptor {
             label,
             // All textures are stored as 3D, we represent our 2D texture by setting depth to 1.
@@ -40,8 +58,7 @@ impl Texture {
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
-            // Most images are stored using sRGB, so we need to reflect that here.
-            format: wgpu::TextureFormat::Rgba8UnormSrgb,
+            format,
             // TEXTURE_BINDING tells wgpu that we want to use this texture in shaders,
             // COPY_DST means that we want to copy data to this texture.
             usage: wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::TEXTURE_BINDING,
@@ -139,9 +156,14 @@ impl Texture {
     /// The `load_texture` method will be useful when we load the textures for our models, as
     /// `include_bytes!` requires that we know the name of the file at compile time, which we can't
     /// really guarantee with model textures.
-    pub async fn load_texture(file_name: &str, device: &Device, queue: &Queue) -> Result<Texture> {
+    pub async fn load_texture(
+        file_name: &str,
+        device: &Device,
+        queue: &Queue,
+        is_normal_map: bool,
+    ) -> Result<Texture> {
         let data = load_binary(file_name).await?;
 
-        Texture::from_bytes(device, queue, &data, file_name)
+        Texture::from_bytes(device, queue, &data, file_name, is_normal_map)
     }
 }
