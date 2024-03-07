@@ -7,8 +7,9 @@ struct Camera {
 var<uniform> camera: Camera;
 
 struct Light {
-    color: vec3<f32>,
+    // Swapping the order resulted in light changing the color of the cube instead of position.
     position: vec3<f32>,
+    color: vec3<f32>,
 }
 @group(1) @binding(0)
 var<uniform> light: Light;

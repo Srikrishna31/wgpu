@@ -11,7 +11,7 @@ use crate::{
 use cgmath::Rotation3;
 use wgpu::util::DeviceExt;
 use wgpu::PipelineLayout;
-use wgpu::{BindGroupLayout, Device, RenderPipeline};
+use wgpu::{Device, RenderPipeline};
 use winit::window::Window;
 
 pub(super) struct State<'window> {
@@ -376,11 +376,9 @@ impl<'window> State<'window> {
         );
 
         // Update the light
-        let old_position: cgmath::Vector3<f32> = self.light.position.into();
+        let old_position: cgmath::Vector3<_> = self.light.position.into();
         self.light.position =
-            (cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(1.0))
-                * old_position)
-                .into();
+            (cgmath::Quaternion::from_angle_y(cgmath::Deg(1.0)) * old_position).into();
         self.queue
             .write_buffer(&self.light_buffer, 0, bytemuck::cast_slice(&[self.light]));
     }
