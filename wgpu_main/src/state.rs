@@ -37,7 +37,6 @@ pub(super) struct State<'window> {
     light_bind_group: wgpu::BindGroup,
     light_bind_group_layout: wgpu::BindGroupLayout,
     light_render_pipeline: wgpu::RenderPipeline,
-    pub(crate) mouse_pressed: bool,
 }
 
 impl<'window> State<'window> {
@@ -276,7 +275,6 @@ impl<'window> State<'window> {
             light: LightUniform::default(),
             light_render_pipeline,
             projection,
-            mouse_pressed: false,
         }
     }
 

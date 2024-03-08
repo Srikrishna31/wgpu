@@ -2,7 +2,7 @@ use super::{camera::Camera, camera::SAFE_FRAC_PI_2};
 use cgmath::{InnerSpace, Rad, Vector3};
 use instant::Duration;
 use winit::dpi::PhysicalPosition;
-use winit::event::MouseScrollDelta;
+use winit::event::{MouseButton, MouseScrollDelta};
 use winit::{
     event::{ElementState, KeyEvent, WindowEvent},
     keyboard::{KeyCode, PhysicalKey::Code},
@@ -20,6 +20,7 @@ pub struct CameraController {
     scroll: f32,
     speed: f32,
     sensitivity: f32,
+    mouse_pressed: bool,
 }
 
 impl CameraController {
@@ -36,6 +37,7 @@ impl CameraController {
             scroll: 0.0,
             speed,
             sensitivity,
+            mouse_pressed: false,
         }
     }
 
@@ -75,13 +77,27 @@ impl CameraController {
                     _ => false,
                 }
             }
+            WindowEvent::MouseWheel { delta, .. } => {
+                self.process_scroll(delta);
+                true
+            }
+            WindowEvent::MouseInput {
+                state,
+                button: MouseButton::Left,
+                ..
+            } => {
+                self.mouse_pressed = *state == ElementState::Pressed;
+                true
+            }
             _ => false,
         }
     }
 
     pub fn process_mouse(&mut self, mouse_dx: f64, mouse_dy: f64) {
-        self.rotate_horizontal = mouse_dx as f32 * self.sensitivity;
-        self.rotate_vertical = mouse_dy as f32 * self.sensitivity;
+        if self.mouse_pressed {
+            self.rotate_horizontal = mouse_dx as f32 * self.sensitivity;
+            self.rotate_vertical = mouse_dy as f32 * self.sensitivity;
+        }
     }
 
     pub fn process_scroll(&mut self, delta: &MouseScrollDelta) {
