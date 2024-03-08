@@ -1,5 +1,4 @@
 mod camera;
-mod camera_controller;
 mod instance;
 mod light;
 mod model;
@@ -56,9 +55,16 @@ pub async fn run() {
     }
 
     let mut state = State::new(&window).await;
+    let mut last_render_time = instant::Instant::now();
 
     event_loop
         .run(move |event, elwt| match event {
+            Event::DeviceEvent {
+                event: DeviceEvent::MouseMotion { delta },
+                .. // We're not using device_id currently
+            } => if state.mouse_pressed {
+                state.camera_controller.process_mouse(delta.0, delta.1);
+            },
             Event::WindowEvent {
                 ref event,
                 window_id,
@@ -66,6 +72,7 @@ pub async fn run() {
             } if window_id == state.window().id() => {
                 if !state.input(event) {
                     match event {
+                        #[cfg(not(target_arch = "wasm32"))]
                         WindowEvent::CloseRequested
                         | WindowEvent::KeyboardInput {
                             event:
@@ -93,7 +100,10 @@ pub async fn run() {
                             state.resize(new_size);
                         }
                         WindowEvent::RedrawRequested => {
-                            state.update();
+                            let now = instant::Instant::now();
+                            let dt = now - last_render_time;
+                            last_render_time = now;
+                            state.update(dt);
                             match state.render() {
                                 Ok(_) => (),
                                 Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {

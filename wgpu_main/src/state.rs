@@ -1,10 +1,8 @@
-use crate::model::DrawLight;
 use crate::{
-    camera::{Camera, CameraUniform},
-    camera_controller::CameraController,
+    camera::{Camera, CameraController, CameraUniform, Projection},
     instance::{Instance as ObjectInstance, InstanceRaw},
     light::LightUniform,
-    model::{DrawModel, Model, ModelVertex, Vertex},
+    model::{DrawLight, DrawModel, Model, ModelVertex, Vertex},
     resources,
     texture::Texture,
 };
@@ -25,10 +23,11 @@ pub(super) struct State<'window> {
     window: &'window Window,
     render_pipeline: wgpu::RenderPipeline,
     camera: Camera,
+    projection: Projection,
     camera_uniform: CameraUniform,
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
-    camera_controller: CameraController,
+    pub(crate) camera_controller: CameraController,
     instances: Vec<ObjectInstance>,
     instance_buffer: wgpu::Buffer,
     depth_texture: Texture,
@@ -38,6 +37,7 @@ pub(super) struct State<'window> {
     light_bind_group: wgpu::BindGroup,
     light_bind_group_layout: wgpu::BindGroupLayout,
     light_render_pipeline: wgpu::RenderPipeline,
+    pub(crate) mouse_pressed: bool,
 }
 
 impl<'window> State<'window> {
@@ -148,22 +148,14 @@ impl<'window> State<'window> {
                 label: Some("texture_bind_group_layout"),
             });
 
-        let camera = Camera {
-            // position the camera 1 unit up and 2 units back. +z is out of the screen.
-            eye: (0.0, 1.0, 2.0).into(),
-            // have it look at the origin
-            target: (0.0, 0.0, 0.0).into(),
-            // which way is "up"
-            up: cgmath::Vector3::unit_y(),
-            aspect: config.width as f32 / config.height as f32,
-            fovy: 45.0,
-            znear: 0.1,
-            zfar: 100.0,
-        };
+        let camera = Camera::new((0.0, 5.0, 10.0), cgmath::Deg(-90.0), cgmath::Deg(-20.0));
+        let projection =
+            Projection::new(config.width, config.height, cgmath::Deg(45.0), 0.1, 100.0);
+        let camera_controller = CameraController::new(4.0, 0.4);
 
         let camera_uniform = {
             let mut camera_uniform = CameraUniform::new();
-            camera_uniform.update_view_proj(&camera);
+            camera_uniform.update_view_proj(&camera, &projection);
             camera_uniform
         };
 
@@ -273,7 +265,7 @@ impl<'window> State<'window> {
             camera_buffer,
             camera_bind_group,
             camera_uniform,
-            camera_controller: CameraController::new(0.2),
+            camera_controller,
             instances,
             instance_buffer,
             depth_texture,
@@ -283,6 +275,8 @@ impl<'window> State<'window> {
             light_bind_group_layout,
             light: LightUniform::default(),
             light_render_pipeline,
+            projection,
+            mouse_pressed: false,
         }
     }
 
@@ -353,6 +347,7 @@ impl<'window> State<'window> {
 
     pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
         if new_size.width > 0 && new_size.height > 0 {
+            self.projection.resize(new_size.width, new_size.height);
             self.size = new_size;
             self.config.width = new_size.width;
             self.config.height = new_size.height;
@@ -366,9 +361,10 @@ impl<'window> State<'window> {
         self.camera_controller.process_events(event)
     }
 
-    pub(crate) fn update(&mut self) {
-        self.camera_controller.update_camera(&mut self.camera);
-        self.camera_uniform.update_view_proj(&self.camera);
+    pub(crate) fn update(&mut self, dt: instant::Duration) {
+        self.camera_controller.update_camera(&mut self.camera, dt);
+        self.camera_uniform
+            .update_view_proj(&self.camera, &self.projection);
         self.queue.write_buffer(
             &self.camera_buffer,
             0,
@@ -378,7 +374,8 @@ impl<'window> State<'window> {
         // Update the light
         let old_position: cgmath::Vector3<_> = self.light.position.into();
         self.light.position =
-            (cgmath::Quaternion::from_angle_y(cgmath::Deg(1.0)) * old_position).into();
+            (cgmath::Quaternion::from_angle_y(cgmath::Deg(60.0 * dt.as_secs_f32())) * old_position)
+                .into();
         self.queue
             .write_buffer(&self.light_buffer, 0, bytemuck::cast_slice(&[self.light]));
     }
