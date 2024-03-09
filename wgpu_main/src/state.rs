@@ -1,5 +1,6 @@
 use crate::{
     camera::{Camera, CameraController, CameraUniform, Projection},
+    hdr,
     instance::{Instance as ObjectInstance, InstanceRaw},
     light::LightUniform,
     model::{DrawLight, DrawModel, Model, ModelVertex, Vertex},
@@ -37,6 +38,7 @@ pub(super) struct State<'window> {
     light_bind_group: wgpu::BindGroup,
     light_bind_group_layout: wgpu::BindGroupLayout,
     light_render_pipeline: wgpu::RenderPipeline,
+    hdr: hdr::HdrPipeline,
 }
 
 impl<'window> State<'window> {
@@ -221,6 +223,7 @@ impl<'window> State<'window> {
                 Some(Texture::DEPTH_FORMAT),
                 &[ModelVertex::desc(), InstanceRaw::desc()],
                 shader,
+                wgpu::PrimitiveTopology::TriangleList,
             )
         };
 
@@ -249,8 +252,11 @@ impl<'window> State<'window> {
                 Some(Texture::DEPTH_FORMAT),
                 &[ModelVertex::desc()],
                 shader,
+                wgpu::PrimitiveTopology::TriangleList,
             )
         };
+
+        let hdr = hdr::HdrPipeline::new(&device, &config);
 
         Self {
             surface,
@@ -275,16 +281,18 @@ impl<'window> State<'window> {
             light: LightUniform::default(),
             light_render_pipeline,
             projection,
+            hdr,
         }
     }
 
-    fn create_render_pipeline(
+    pub(crate) fn create_render_pipeline(
         device: &Device,
         layout: &PipelineLayout,
         color_format: wgpu::TextureFormat,
         depth_format: Option<wgpu::TextureFormat>,
         vertex_layouts: &[wgpu::VertexBufferLayout],
         shader: wgpu::ShaderModuleDescriptor,
+        topology: wgpu::PrimitiveTopology,
     ) -> RenderPipeline {
         let shader = device.create_shader_module(shader);
 
@@ -308,7 +316,7 @@ impl<'window> State<'window> {
             // The primitive field describes how to interpret our vertices when converting them into
             // triangles.
             primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
+                topology,
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
                 // Setting this to anything other than Fill requires Features::NON_FILL_POLYGON_MODE
@@ -352,6 +360,8 @@ impl<'window> State<'window> {
             self.surface.configure(&self.device, &self.config);
             self.depth_texture =
                 Texture::create_depth_texture(&self.device, &self.config, "depth_texture");
+            self.hdr
+                .resize(&self.device, new_size.width, new_size.height);
         }
     }
 
@@ -399,7 +409,7 @@ impl<'window> State<'window> {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &view,
+                    view: self.hdr.view(),
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color {
@@ -439,6 +449,9 @@ impl<'window> State<'window> {
                 0..self.instances.len() as u32,
             );
         }
+
+        // Apply tonemapping
+        self.hdr.process(&mut encoder, &view);
 
         // submit will accept anything that implements IntoIter
         self.queue.submit(std::iter::once(encoder.finish()));
