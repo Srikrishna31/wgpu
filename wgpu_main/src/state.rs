@@ -10,6 +10,7 @@ use crate::{
 use cgmath::Rotation3;
 use wgpu::util::DeviceExt;
 use wgpu::PipelineLayout;
+use wgpu::TextureFormat::Rgba16Float;
 use wgpu::{Device, RenderPipeline};
 use winit::window::Window;
 
@@ -48,6 +49,9 @@ impl<'window> State<'window> {
         // The instance is a handle to our GPU
         // Backends::all => Vulkan + Metal + DX12 + Browser WebGPU
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+            #[cfg(target_arch = "wasm32")]
+            backends: wgpu::Backends::BROWSER_WEBGPU,
+            #[cfg(not(target_arch = "wasm32"))]
             backends: wgpu::Backends::all(),
             ..Default::default()
         });
@@ -87,6 +91,10 @@ impl<'window> State<'window> {
         // Shader code in this tutorial assumes an sRGB surface texture. Using a different one will
         // result in all the colors coming out darker. If you want to support non sRGB surfaces, you'll
         // need to account for that when drawing to the frame.
+        surface_caps.formats.iter().for_each(|f| {
+            // log::info!("{:?}", f);
+            println!("{:?}", f);
+        });
         let surface_format = surface_caps
             .formats
             .iter()
@@ -105,6 +113,7 @@ impl<'window> State<'window> {
             view_formats: vec![],
         };
         surface.configure(&device, &config);
+        let hdr = hdr::HdrPipeline::new(&device, &config);
 
         let depth_texture = Texture::create_depth_texture(&device, &config, "depth_texture");
 
@@ -219,11 +228,12 @@ impl<'window> State<'window> {
             Self::create_render_pipeline(
                 &device,
                 &render_pipeline_layout,
-                config.format,
+                hdr.format(),
                 Some(Texture::DEPTH_FORMAT),
                 &[ModelVertex::desc(), InstanceRaw::desc()],
                 shader,
                 wgpu::PrimitiveTopology::TriangleList,
+                Some("Model Render Pipeline"),
             )
         };
 
@@ -248,15 +258,14 @@ impl<'window> State<'window> {
             Self::create_render_pipeline(
                 &device,
                 &layout,
-                config.format,
+                hdr.format(),
                 Some(Texture::DEPTH_FORMAT),
                 &[ModelVertex::desc()],
                 shader,
                 wgpu::PrimitiveTopology::TriangleList,
+                Some("Light Render Pipeline"),
             )
         };
-
-        let hdr = hdr::HdrPipeline::new(&device, &config);
 
         Self {
             surface,
@@ -293,11 +302,12 @@ impl<'window> State<'window> {
         vertex_layouts: &[wgpu::VertexBufferLayout],
         shader: wgpu::ShaderModuleDescriptor,
         topology: wgpu::PrimitiveTopology,
+        label: Option<&str>,
     ) -> RenderPipeline {
         let shader = device.create_shader_module(shader);
 
         device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("Render Pipeline"),
+            label: label.or(Some("Render Pipeline")),
             layout: Some(layout),
             vertex: wgpu::VertexState {
                 module: &shader,

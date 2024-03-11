@@ -84,9 +84,7 @@ pub async fn run() {
                                 },
                             ..
                         } => elwt.exit(),
-                        WindowEvent::Resized(physical_size) => {
-                            state.resize(*physical_size);
-                        }
+                        WindowEvent::Resized(physical_size) => state.resize(*physical_size),
                         WindowEvent::ScaleFactorChanged {
                             scale_factor: factor,
                             ..
@@ -114,7 +112,6 @@ pub async fn run() {
                                 Err(wgpu::SurfaceError::Timeout) => log::warn!("Surface timeout"),
                             }
                         }
-
                         _ => (),
                     }
                 }
