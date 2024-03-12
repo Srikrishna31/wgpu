@@ -103,11 +103,11 @@ impl Texture {
         })
     }
 
-    pub(crate) const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
+    pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 
     /// We need the `DEPTH_FORMAT` for creating the depth stage of the `render_pipeline` and for
     /// creating the depth texture itself.
-    pub(crate) fn create_depth_texture(
+    pub fn create_depth_texture(
         device: &Device,
         config: &SurfaceConfiguration,
         label: &str,
@@ -170,7 +170,7 @@ impl Texture {
         Texture::from_bytes(device, queue, &data, file_name, is_normal_map)
     }
 
-    pub(crate) fn create_2d_texture(
+    pub fn create_2d_texture(
         device: &Device,
         width: u32,
         height: u32,

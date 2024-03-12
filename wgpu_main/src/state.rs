@@ -10,7 +10,6 @@ use crate::{
 use cgmath::Rotation3;
 use wgpu::util::DeviceExt;
 use wgpu::PipelineLayout;
-use wgpu::TextureFormat::Rgba16Float;
 use wgpu::{Device, RenderPipeline};
 use winit::window::Window;
 
