@@ -72,11 +72,15 @@ impl<'window> State<'window> {
         let (device, queue) = adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
-                    required_features: wgpu::Features::empty(),
+                    required_features: wgpu::Features::all_webgpu_mask(), // For compute shaders
                     required_limits: if cfg!(target_arch = "wasm32") {
                         wgpu::Limits::downlevel_webgl2_defaults()
                     } else {
-                        wgpu::Limits::default()
+                        // Downlevel_defaults means, we are dropping support for WebGL2. The reason
+                        // for this is that WebGL2 doesn't support the compute shaders. WebGPU was
+                        // built with compute shaders in mind. Currently, only Chrome supports WebGPU
+                        // and some experimental browsers such as Firefox Nightly.
+                        wgpu::Limits::downlevel_defaults() // For compute shaders
                     },
                     label: None,
                 },
